@@ -1,0 +1,395 @@
+---
+title: "IE 6600_SEC 01_Group 23_Hackathon"
+output:
+  pdf_document: default
+  html_document: default
+date: '2023-02-12'
+---
+
+# 1.Introduction and Problem Statement
+
+### The cultural, social, and political environment of a country are significantly influenced by religion. The general public is not well informed on how religious affiliations are distributed among nations, nevertheless. A thorough and user-friendly data visualization project is required to enable people to comprehend the religion demographics of various countries. The objective of this project is to produce interactive data visualizations that reveal information on the worldwide religious distribution. This initiative aims to promote public understanding and awareness of the complex and diverse religious landscape of countries around the world by presenting a clear and interesting portrayal of religious data from 1945 to 2010.
+
+# 2.About the Dataset
+
+### As per the resources shared, we decided to go ahead with World Religion Data from the Correlates of the War Project.It contains data about the number of adherents by religion in each of the states in the international system. These numbers are given for every half-decade period (1945, 1950,…, 2010). The WRP contains three datasets: the national religion dataset, the regional religion dataset, and the global religion dataset.
+### Source of the data :- https://correlatesofwar.org/data-sets/world-religion-data/
+
+```{r setup, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE)
+```
+
+```{r Libraries, include=FALSE}
+# install and declare the libraries
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(RColorBrewer)
+library(treemapify)
+library(treemap)
+library(stringr)
+#install.packages('wordcloud2')
+library(wordcloud2) 
+#install.packages('wordcloud')
+library(wordcloud)
+#install.packages("stopwords")
+library("stopwords")
+#install.packages("tidyverse")
+library(tidyverse)
+#install.packages("tidytext")
+library(tidytext)
+#install.packages("cowplot")
+library(cowplot)
+#install.packages('usmap')
+library(usmap)
+#install.packages('highcharter')
+library(highcharter)
+#install.packages('tm')
+library(tm)
+library(SnowballC)
+library(RColorBrewer)
+library(gridExtra)
+library(corrplot)
+library(tidyverse)
+library(magrittr)
+library(stringr)
+library(reshape2)
+library(data.table)
+```
+
+# Data Cleaning Process
+
+```{r Data Cleaning, echo=FALSE, include=FALSE}
+getwd()
+df_global = read.csv("/Users/vipulnaik/Desktop/Hackathon/WRP_global.csv")
+df_national = read.csv("/Users/vipulnaik/Desktop/Hackathon/WRP_national.csv")
+df_regional = read.csv("/Users/vipulnaik/Desktop/Hackathon/WRP_regional.csv")
+
+# Checking the dimension of the dataframe and column names
+#dim(df_national)      
+#colnames(df_national) 
+#dim(df_regional)     
+#colnames(df_regional)
+#dim(df_global)      
+#colnames(df_global)
+
+# Checking for the null values using is.na() it was found that the dataset does not contain null values.
+#is.na(df_global)
+#is.na(df_regional)
+#is.na(df_national)
+
+# Dropping the redundant columns from the dataset
+df_national= subset(df_national,select = -c(state,datatype,sourcereliab,recreliab,reliabilevel,Version,sourcecode))
+df_regional=subset(df_regional,select = -c(version))
+df_global=subset(df_global,select=-c(version))
+
+```
+
+# Section 1
+
+### Using the Global Religion Dataset, we can create a map to visualize the distribution of religious affiliations across the world and identify the Regions or Continents with the highest diversity or dominance of a particular religion.
+
+## Question 1
+### Analyze the proportion of global population which follow any sort of religious practices.
+```{r Section 1 Question 1, echo=FALSE}
+#Comparing the trend of Religious and Non-religious people after World war 2 (i.e from 1945)
+#Subsetting Data to extract required columns only
+df_reg_nonreg <- subset(df_global,select= c(year, nonreligpct, sumreligpct))
+#Renaming column names
+colnames(df_reg_nonreg) <- c('Years', 'Non_religious_people', 'Religious_people')
+
+#Creating the plot
+ggplot(df_reg_nonreg, aes(x = Years)) +
+  geom_point(aes(y = Religious_people, color = "religious"), size = 3) +
+  geom_point(aes(y = Non_religious_people, color = "non-religious"), size = 3) +
+  xlab("Years") +
+  ylab("Number of People (%)") +
+  ggtitle("Comparison of Religious and Non-Religious People Over the Years") +
+  scale_color_manual(name = "", values = c("religious" = "green", "non-religious" = "orange")) +
+  theme_classic()
+
+```
+
+## Output 1 
+### From the graph plotted above,it is evident that a larger proportion of world's population adhere to some sort of religious practices, hence the focus of analysis in the subsequent parts are the ones who adhere to any of religions.
+
+
+## Question 2 
+### What is the change in the distribution of population of each religion globally from 1945 to 2010?
+```{r Section 1 Question 2, echo=FALSE}
+#For Year 1945
+df_global_1945 = subset(df_global, year == 1945)
+df_subset <- df_global_1945[,c(7,12,20,24,25,26,27,28,29,30,31,32,33,34,35,36)]
+religion_1945 <- as.data.frame(t(df_subset))
+colnames(religion_1945) <- 'Pop'
+religion = row.names(religion_1945)
+religion_1945 = cbind(religion,religion_1945)
+religion_1945 = data.frame(lapply(religion_1945, gsub, pattern = ",", replacement = ""))
+religion_1945$Pop <- as.integer(religion_1945$Pop) 
+
+r1945 <- ggplot(religion_1945, aes(x=religion, y=Pop,  fill=religion)) + 
+  geom_bar(stat= "identity") + 
+  scale_fill_hue(c = 40) +
+  theme(legend.position="none",
+        axis.text.x=element_text(angle=90, vjust=0.5, hjust=1),
+        plot.margin=unit(c(1,1,1,1),"cm")) + theme(panel.background = element_blank())
+
+#FOr Year 2010
+df_global_2010 = subset(df_global, year == 2010)
+
+df_subset <- df_global_2010[,c(7,12,20,24,25,26,27,28,29,30,31,32,33,34,35,36)]
+
+religion_2010 <- as.data.frame(t(df_subset))
+
+colnames(religion_2010) <- 'Pop'
+religion = row.names(religion_2010)
+religion_2010 = cbind(religion,religion_2010)
+religion_2010 = data.frame(lapply(religion_2010, gsub, pattern = ",", replacement = ""))
+religion_2010$Pop <- as.integer(religion_2010$Pop) 
+
+r2010 <- ggplot(religion_2010, aes(x=religion, y=Pop,  fill=religion)) + 
+  geom_bar(stat= "identity") + 
+  scale_fill_hue(c = 40) +
+  theme(legend.position="none",
+        axis.text.x=element_text(angle=90, vjust=0.5, hjust=1),
+        plot.margin=unit(c(1,1,1,1),"cm")) + theme(panel.background = element_blank())
+
+grid.arrange(r2010 + theme(axis.text.x=element_text(size=5)), 
+             r1945 + theme(axis.text.x=element_text(size=5)), 
+             ncol = 2, heights=c(2,1))
+
+```
+
+## Output 2 
+### With the global religion data, we tried to find which religion is the most dominant one by creating barplots. By observing the data from 1945 to 2010, we can conclude that Christian and Islam are the two religions adhered by most number of people across the globe.
+
+
+## Question 3 
+### Observe the variation in population of Christians and Islam from 1945 to 2010.
+```{r Section 1 Question 3, echo=FALSE}
+df_update <- df_national[df_national$name=='USA',]
+df_subset <- df_update[,c(1,8,21)]
+line_1 <- ggplot(df_subset, aes(x = year, y = chrstgen,group=1)) +
+          geom_line() + scale_x_continuous(breaks = seq(1945, 2010, 5)) + 
+  theme_bw()
+line_2 <- ggplot(df_subset, aes(x = year, y = islmgen,group=1)) +
+          geom_line() + scale_x_continuous(breaks = seq(1945, 2010, 5)) + 
+  theme_bw()
+
+grid.arrange(line_1 + theme(axis.text.x=element_text(size=5)),line_2 + theme(axis.text.x=element_text(size=5)), ncol = 2)
+
+```
+
+## Output 3 
+### From the above plots, it is observed that the population of people adhereing to Christian as well as Islam is increasing over the course of time and the peak gets during 2010.
+
+
+# Section 2
+
+### Using the Regional Religion Dataset, we can identify regional trends in religious affiliation, such as regions with high growth or decline in a particular religion. The regions involved are Africa, Asia, Europe, Middle East and West Hemisphere. By comparing the data from the Regional Religion Dataset, we can compare the prevalence of different religions across regions and determine if there are patterns or differences. Since Christianity and Islam are the most prominent religions, the forthcoming analysis would be concentrated around these 2 religions.
+
+## Question 1
+### Identify the distributions of Christianity and Islam across all regions for the year 2010.
+```{r Section 2 Question 1,echo=FALSE}
+# Basic piechart
+df_pie <- df_regional[df_regional$year=="2010",]
+df_pie1 <- df_pie[,c(2,8,21)]
+p_1 <- ggplot(df_pie1, aes(x="", y=chrstgen, fill=region)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0) + theme_void() +  ggtitle('Christian-2010')
+
+p_2 <- ggplot(df_pie1, aes(x="", y=islmgen, fill=region)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0) + theme_void() + ggtitle('Islam-2010')
+
+grid.arrange(p_1,p_2, ncol = 2)
+
+```
+
+```{r, echo=FALSE}
+df_pie1
+
+# plotting the comparison bar graph by country to show the gender wise count of mental illness
+b_1 <- ggplot(data = df_pie1,
+         mapping = aes(x = region, y = chrstgen)) +
+  # setting the specification of bar graph
+  geom_bar(stat = "identity", position = "dodge") +
+  # flipping the axis of bar graph
+  coord_flip() +
+  # setting the labels of bar graph
+  ggtitle('Christian distribution in 2010') + theme_bw()
+
+# plotting the comparison bar graph by country to show the gender wise count of mental illness
+b_2 <- ggplot(data = df_pie1,
+         mapping = aes(x = region, y = islmgen)) +
+  # setting the specification of bar graph
+  geom_bar(stat = "identity", position = "dodge") +
+  # flipping the axis of bar graph
+  coord_flip() +
+  # setting the labels of bar graph
+  ggtitle('Islam distribution in 2010') + theme_bw()
+
+grid.arrange(b_1+theme(axis.text.x=element_text(size=5)),b_2+
+               theme(axis.text.x=element_text(size=5)), ncol = 2)
+
+```
+
+## Output 1
+### From the 2 plots above,the piecharts and barcharts represent distribution of Christianity and Islam across all regions for the year 2010. For Christianity, Western Hemisphere has the most followers whereas for Islam, Asia leads the list.
+
+
+## Question 2 
+### Analyze the composition of Christianity in Western Hemisphere and Islam in Asia.
+```{r,echo=FALSE}
+#Lollipop Charts
+#Christianity in West. Hemp
+WH = subset(df_regional, region == "West. Hem")
+df_WH <- WH %>% dplyr::select(chrstprot,	chrstcat,	chrstorth,	chrstang,	chrstothr)
+region_WH <- as.data.frame(t(df_WH))
+colnames(region_WH) <- 'WestHemRegion'
+subregion = row.names(region_WH)
+region_WH = cbind(subregion,region_WH)
+region_WH= data.frame(lapply(region_WH, gsub, pattern = ",", replacement = ""))
+region_WH$WestHemRegion <- as.integer(region_WH$WestHemRegion)
+l_1 <-ggplot(region_WH, aes(x = subregion, y = WestHemRegion)) +
+  geom_segment(aes(x = subregion, xend = subregion, y = 0, yend = WestHemRegion), color = "blue", size = 5) +
+  geom_point(color = "orange", size = 5) +
+  labs(x = NULL, y = "West Hemisphere Region") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#Islam in Asia
+AS = subset(df_regional, region == "Asia")
+df_AS <- AS %>% dplyr::select(islmsun,	islmshi, islmibd,	islmnat,	islmalw,	islmahm,	islmothr)
+region_AS <- as.data.frame(t(df_AS))
+colnames(region_AS) <- 'AsiaRegion'
+subregion1 = row.names(region_AS)
+region_AS = cbind(subregion1,region_AS)
+region_AS= data.frame(lapply(region_AS, gsub, pattern = ",", replacement = ""))
+region_AS$AsiaRegion <- as.integer(region_AS$AsiaRegion)
+l_2 <- ggplot(region_AS, aes(x = subregion1, y = AsiaRegion)) +
+  geom_segment(aes(x = subregion1, xend = subregion1, y = 0, yend = AsiaRegion), color = "blue", size = 5) +
+  geom_point(color = "orange", size = 5) +
+  labs(x = NULL, y = "Asia Region") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust=1))
+
+grid.arrange(l_1+theme(axis.text.x=element_text(size=5)),l_2+
+               theme(axis.text.x=element_text(size=5)), ncol = 2)
+
+
+```
+
+## Output 2
+### The lollipop charts above present the composition of subreligions for Christianity and Islam in Western Hemisphere and Asia respectively.Roman Catholics comprise a major portion of Christians in West Hemisphere whereas the Others in Islam were in majority.
+
+
+# Section 3
+
+###  Using the National Religion Dataset, we can visualize the different religious affiliations of each country and identify states with higher diversity or countries where one religion dominates the population. As per the previous sections, we analyzed the prominent religions over particular region. The consequent visualizations would be morspecific to countries.
+
+## Question 1
+### Analyze the spread of population of all religions in different countries and identify the countries where most number of Christians and Islam stay respectively.
+```{r Section 3 Question 1, fig.width = 12, fig.height=12,echo=FALSE}
+
+df_count10 <- df_national %>%
+  filter(name == "USA" | name == "CAN" | name == "BHM" | name == "CUB" | name == "HAI" | name == "DOM" | name == "JAM" | name == "TRI" | name == "BAR" | name == "GMY" | name ==  "NTH" | name ==  "IRE" | name ==  "UKG" | name ==  "BRA" | name ==  "SUR" | name ==  "MEX" | name ==  "BLZ" )
+
+mydata <- df_count10[ , c(2,8,13,21,25,26,27,28,29,30,31,32,33,34,35,36,37)] # Selecting Numerical Cells
+colnames(mydata) <- c('Name', 'Christianity', 'Judaism', 'Islam', 'Buddhism', 'Zoroastrian', 'Hindu', 'Sikh', 'Shinto', 'Baha’i', 'Taoism', 'Jain', 'Confucianism', 'Syncretic Religions', 'Animist Religions', 'Non-Religious', 'Other-Religions')
+
+melted_data <- melt(mydata, id.vars = "Name")
+ggplot(data = melted_data, aes(x = Name, y = variable, fill = log10(value))) + 
+  geom_tile(color = "white",
+            lwd = 1.5,
+            linetype = 1) +
+  coord_fixed() + guides(fill = guide_colourbar(barwidth = 0.5,
+                                barheight = 20))+
+  scale_fill_gradient(low = "black",  high = "yellow") + 
+  labs(title = "Religious Diversity of Individual countries", 
+       x = "Country Code", 
+       y = "Religious Affiliation", 
+       fill = "Total number of Adherents in each religion") + 
+  theme(plot.title = element_text(hjust=0.5))
+```
+
+## Output 1
+### The heatmap above depicts that USA is the country with highest number of Christians whereas GMY includes most number of Muslims. Hence the upcoming analysis would be based on the spread of various subreligions of Christians and Islam in USA and GMY respectively.
+
+
+## Question 2
+### Analyze the composition of  sub categories of Christianity in USA as well as Islam in GMY.
+```{r Section 3 Question 2 ,echo=FALSE}
+#Density plot for Christianity in the USA
+
+df_USA <- df_national %>%
+  filter(name == "USA")
+ 
+
+#Selecting required columns for task 1 into a temp variable 
+newdf_usa <- df_USA[ , c(3,4,5,6,7)]
+colnames(newdf_usa) <- c('Protestant', 'Roman Catholics', 'Eastern Orthodox', 'Anglican', 'Others')
+
+
+#Converting the dataframe to long format
+long_d <- newdf_usa %>%
+  pivot_longer(cols=c('Protestant', 'Roman Catholics', 'Eastern Orthodox', 'Anglican', 'Others'),
+                    names_to='Christian_Sub_categories',
+                    values_to='No_of_Adherents')
+
+
+#Plotting the density graph using ggplot functions
+dens_p1 <- long_d%>%
+  ggplot(aes(x=log10(No_of_Adherents), fill= Christian_Sub_categories)) +
+  geom_density(alpha = 0.5)+ 
+  labs(x= "log of No of Adherents",
+       subtitle="No of Adherents in each Christian Sub-category",
+       caption="Density Plot") + theme_bw()
+#theme(panel.background = element_blank())
+dens_p1
+
+
+```
+
+
+```{r,echo=FALSE}
+#Density for Islam religioins in the GMY
+
+df_GMY <- df_national %>%
+  filter(name == "GMY")
+
+#Selecting required columns for task 1 into a temp variable 
+newdf_gmy <- df_GMY[ , c(1,14,15,16,17, 18, 19, 20)]
+colnames(newdf_gmy) <- c('year','Sunni', 'Shi’a', 'Ibadhi', 'Nation of Islam', 'Alawite', 'Ahmadiyya' , 'Others')
+
+#Converting the dataframe to long format
+long_e <- newdf_gmy %>%
+  pivot_longer(cols=c('Sunni', 'Shi’a', 'Ibadhi', 'Nation of Islam', 'Alawite', 'Ahmadiyya' , 'Others'),
+                    names_to='Islam_Sub_categories',
+                    values_to='No_of_Adherents')
+
+
+#Plotting the density graph using ggplot functions
+dens_p2 <- long_e%>%
+  ggplot(aes(x=log10(No_of_Adherents), fill= Islam_Sub_categories)) +
+  geom_density(alpha = 0.5)+ 
+  labs(x= "log of No of Adherents",
+       subtitle="No of Adherents in each Islam Sub-category",
+       caption="Density Plot") + theme_bw()
+dens_p2
+
+
+```
+
+## Output 2
+### The density plot shows the spread of various subreligions in Christianity and Islam in USA and GMY respectively.
+
+
+# Summary and Conclusion
+
+### We analyzed the  World Religion Data from the Correlates of War Project website. The data consisted of 3 different datasets, which included information regarding the population of various religions in different parts of the world. The data was segregated as Global, regional and national data. It included variables like year, country, region, religion name and it's subtypes.
+### In the first section, the report outlines the demographics of religion all over the world. Finding the proportion of people who actually adhere to any type of religious practices out of the total population, our analysis was subject to these people. Having amalysed them, we found that Christianity and Islam are the two most prominent religions followed by the people. Also, we observed the variation in population of Christianity and Islam from 1945 to 2010.
+### As Christianity and Islam composed a large chunck of population, analysis in this section remains focused on these 2 religions.This section checks for the spread of Christianity and Islam across various regions like Africa, Asia, Europe, Western Hemisphere and Middle East. It was observed that Christianity dominated in Western hemisphere whereas Islam dominated in Asia. Also the spread of various subreligions in Christianity and Islam across Western Hemisphere and Asia respectively were also observed.
+### In the final section,  various countries of Western Hemisphere and Asia were explored to check the population of these religions in them. USA and GMY turned out to be the countries leading in population of Christians and Muslims respectively.
+
